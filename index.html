@@ -2,152 +2,138 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Cyprus Earthquakes Viewer</title>
+  <title>Live Cyprus Earthquake Map | Real-Time Seismic Activity</title>
+  <meta name="description" content="Live interactive map showing recent earthquakes around Cyprus with real-time magnitude, time, and location updates from EMSC.">
+  <meta name="keywords" content="Cyprus earthquakes, earthquake map, live earthquakes, seismic activity, EMSC, real-time earthquakes">
+  <meta name="robots" content="index, follow">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+  <!-- Structured Data for Google -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Dataset",
+    "name": "Cyprus Earthquake Data",
+    "description": "Live map showing recent earthquakes near Cyprus, including magnitude and time.",
+    "license": "https://creativecommons.org/licenses/by/4.0/",
+    "creator": {
+      "@type": "Organization",
+      "name": "European-Mediterranean Seismological Centre (EMSC)"
+    },
+    "distribution": [{
+      "@type": "DataDownload",
+      "encodingFormat": "application/json",
+      "contentUrl": "https://www.seismicportal.eu/fdsnws/event/1/query"
+    }]
+  }
+  </script>
+
   <style>
     html, body {
       height: 100%;
       margin: 0;
-      font-family: "Segoe UI", Arial, sans-serif;
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
     }
     #map {
-      height: 100vh;
+      height: 80vh;
       width: 100%;
     }
-    .legend {
-      background: rgba(255, 255, 255, 0.9);
-      padding: 10px 14px;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      font-size: 14px;
-      line-height: 1.5;
+    .content {
+      padding: 15px 20px;
+      max-width: 900px;
+      margin: 0 auto;
+      line-height: 1.6;
     }
-    .legend h4 {
-      margin: 0 0 6px;
-      font-size: 15px;
-      font-weight: bold;
-    }
-    .legend span {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      margin-right: 6px;
-      vertical-align: middle;
-    }
-    #last-updated {
-      font-size: 12px;
-      color: #333;
-      margin-top: 6px;
-    }
-    .leaflet-popup-content {
-      font-size: 14px;
+    .content h1 {
+      text-align: center;
+      color: #2a3d66;
     }
   </style>
 </head>
 <body>
+
+  <div class="content">
+    <h1>Live Cyprus Earthquake Map</h1>
+    <p>
+      This map displays recent earthquakes around <strong>Cyprus</strong> based on live data from the
+      <a href="https://www.seismicportal.eu/" target="_blank">European-Mediterranean Seismological Centre (EMSC)</a>.
+      Each marker represents an earthquake, color-coded by how recent it was:
+      green for the last 24 hours, orange for the last 3 days, and red for older events.
+    </p>
+    <p>
+      Hover or click on a point to see detailed information, including
+      <strong>magnitude</strong>, <strong>location</strong>, and the local <strong>Cyprus time</strong> of the event.
+    </p>
+  </div>
+
   <div id="map"></div>
+
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    const map = L.map('map').setView([35.1, 33.4], 7);
+    const map = L.map("map").setView([35.0, 33.2], 8);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18,
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    const url = "https://www.seismicportal.eu/fdsnws/event/1/query?format=json&starttime=2025-11-12T00:00:00&minlat=34.4&maxlat=36.0&minlon=32.0&maxlon=35.0";
 
-    let quakeLayerGroup = L.layerGroup().addTo(map);
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        if (!data.features) return alert("No earthquake data found!");
+        const earthquakes = data.features.map(f => ({
+          place: f.properties.flynn_region,
+          mag: f.properties.mag,
+          time: new Date(f.properties.time),
+          lat: f.geometry.coordinates[1],
+          lon: f.geometry.coordinates[0],
+        }));
+        earthquakes.sort((a, b) => b.time - a.time);
+        const now = new Date();
 
-    // ✅ Add legend as a Leaflet control
-    const legend = L.control({ position: 'bottomleft' });
+        earthquakes.forEach((eq, i) => {
+          const hoursOld = (now - eq.time) / 3600000;
+          let color = "green";
+          if (hoursOld > 24) color = "orange";
+          if (hoursOld > 72) color = "red";
+          const marker = L.circleMarker([eq.lat, eq.lon], {
+            radius: Math.max(eq.mag, 3),
+            color,
+            fillColor: color,
+            fillOpacity: 0.6
+          }).addTo(map);
 
-    legend.onAdd = function(map) {
-      const div = L.DomUtil.create('div', 'legend');
-      div.innerHTML = `
-        <h4>Earthquake Age</h4>
-        <div><span style="background:green"></span> Less than 12h</div>
-        <div><span style="background:orange"></span> 12h – 48h</div>
-        <div><span style="background:red"></span> Older than 48h</div>
-        <div id="last-updated">Loading...</div>
-      `;
-      return div;
-    };
-
-    legend.addTo(map);
-
-    function updateLegendTime() {
-      const updated = new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'Europe/Nicosia',
-        hour: '2-digit', minute: '2-digit', second: '2-digit'
-      }).format(new Date());
-      document.getElementById('last-updated').textContent = `Last updated: ${updated} CY time`;
-    }
-
-    function fetchEarthquakes() {
-      quakeLayerGroup.clearLayers();
-
-      const now = new Date();
-      const startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const url = `https://www.seismicportal.eu/fdsnws/event/1/query?format=json&starttime=${startTime}&minlat=34.4&maxlat=36.0&minlon=32.0&maxlon=35.0`;
-
-      fetch(url)
-        .then(res => res.json())
-        .then(data => {
-          const events = data.features.map(f => ({
-            place: f.properties.flynn_region || f.properties.eventID,
-            mag: f.properties.mag,
-            time: f.properties.time,
-            lat: f.geometry.coordinates[1],
-            lon: f.geometry.coordinates[0]
-          }));
-
-          events.sort((a, b) => new Date(b.time) - new Date(a.time));
-          const now = new Date();
-
-          events.forEach(eq => {
-            const quakeTime = new Date(eq.time);
-            const diffHours = (now - quakeTime) / 1000 / 3600;
-            let color = 'red';
-            if (diffHours < 12) color = 'green';
-            else if (diffHours < 48) color = 'orange';
-
-            const cyTime = new Intl.DateTimeFormat('en-GB', {
-              timeZone: 'Europe/Nicosia',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit'
-            }).format(quakeTime);
-
-            const marker = L.circleMarker([eq.lat, eq.lon], {
-              radius: Math.max(eq.mag * 2, 4),
-              fillColor: color,
-              color: color,
-              weight: 1,
-              opacity: 1,
-              fillOpacity: 0.7
-            }).addTo(quakeLayerGroup);
-
-            marker.bindPopup(`
-              <b>${eq.place}</b><br>
-              Magnitude: ${eq.mag}<br>
-              Cyprus Time: ${cyTime}
-            `);
+          const cyTime = eq.time.toLocaleString("en-GB", {
+            timeZone: "Europe/Athens",
+            dateStyle: "medium",
+            timeStyle: "short",
           });
-
-          updateLegendTime();
-        })
-        .catch(err => {
-          console.error('Error fetching data:', err);
-          document.getElementById('last-updated').textContent = 'Failed to load data.';
+          marker.bindPopup(`<b>${eq.place}</b><br>Magnitude: ${eq.mag}<br>Time (Cyprus): ${cyTime}`);
+          if (i === 0) marker.openPopup();
         });
-    }
+      })
+      .catch(err => console.error(err));
 
-    fetchEarthquakes();
-    setInterval(fetchEarthquakes, 5 * 60 * 1000);
+    // Persistent legend
+    const legend = document.createElement("div");
+    legend.innerHTML = `
+      <div style="
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(255,255,255,0.9);
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 13px;
+        line-height: 1.5;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        z-index: 1000;">
+        <b>Legend:</b><br>
+        🟢 Recent (&lt;24h)<br>
+        🟠 1–3 days<br>
+        🔴 &gt;3 days
+      </div>`;
+    document.body.appendChild(legend);
   </script>
 </body>
 </html>
