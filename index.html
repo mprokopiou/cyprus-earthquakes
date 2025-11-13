@@ -30,43 +30,49 @@
   </script>
 
   <style>
-    html, body {
-      height: 100%;
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f9f9f9;
-    }
-    #map {
-      height: 80vh;
-      width: 100%;
-    }
-    .content {
-      padding: 15px 20px;
-      max-width: 900px;
-      margin: 0 auto;
-      line-height: 1.6;
-    }
-    .content h1 {
-      text-align: center;
-      color: #2a3d66;
-    }
-  </style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f9f9f9;
+  }
+  #map {
+    height: calc(100vh - 200px);
+    transition: height 0.3s ease;
+  }
+  .content {
+    padding: 15px 20px;
+    max-width: 900px;
+    margin: 0 auto;
+    line-height: 1.6;
+    position: relative;
+  }
+  .hidden-panel {
+    display: none;
+  }
+  .full-map {
+    height: 100vh !important;
+  }
+</style>
+
 </head>
 <body>
 
-  <div class="content">
-    <h1>Live Cyprus Earthquake Map</h1>
-    <p>
-      This map displays recent earthquakes around <strong>Cyprus</strong> based on live data from the
-      <a href="https://www.seismicportal.eu/" target="_blank">European-Mediterranean Seismological Centre (EMSC)</a>.
-      Each marker represents an earthquake, color-coded by how recent it was:
-      green for the last 24 hours, orange for the last 3 days, and red for older events.
-    </p>
-    <p>
-      Hover or click on a point to see detailed information, including
-      <strong>magnitude</strong>, <strong>location</strong>, and the local <strong>Cyprus time</strong> of the event.
-    </p>
-  </div>
+  <div id="info-panel" class="content">
+  <button id="toggle-info"
+    style="float:right; margin-top:-5px; background:#2a3d66; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">
+    Hide Info
+  </button>
+
+  <h1>Live Cyprus Earthquake Map</h1>
+  <p>
+    This map displays recent earthquakes around <strong>Cyprus</strong> based on live data from the
+    <a href="https://www.seismicportal.eu/" target="_blank">EMSC</a>.
+  </p>
+  <p>
+    Each marker is color-coded by age: green (<24h), orange (1–3 days), red (>3 days).
+  </p>
+</div>
 
   <div id="map"></div>
 
@@ -134,6 +140,23 @@
         🔴 &gt;3 days
       </div>`;
     document.body.appendChild(legend);
+
+    const toggleBtn = document.getElementById("toggle-info");
+    const infoPanel = document.getElementById("info-panel");
+    const mapDiv = document.getElementById("map");
+
+    toggleBtn.addEventListener("click", () => {
+    infoPanel.classList.toggle("hidden-panel");
+    mapDiv.classList.toggle("full-map");
+
+    toggleBtn.textContent = infoPanel.classList.contains("hidden-panel")
+      ? "Show Info"
+      : "Hide Info";
+
+    setTimeout(() => {
+      map.invalidateSize(); // Fix Leaflet resize issues
+    }, 300);
+  });
   </script>
 </body>
 </html>
