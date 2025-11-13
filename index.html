@@ -199,6 +199,12 @@
         s.classList.toggle("hidden");
     }
 
+    /** Converts date to ISO without milliseconds */
+    function cleanISO(date) {
+        return date.toISOString().split(".")[0] + "Z";
+    }
+
+    /** Build the USGS URL dynamically */
     function buildUSGSUrl() {
         const hours = parseInt(document.getElementById("range").value);
         const end = new Date();
@@ -206,34 +212,47 @@
 
         return `
             https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson
-            &starttime=${start.toISOString()}
-            &endtime=${end.toISOString()}
+            &starttime=${cleanISO(start)}
+            &endtime=${cleanISO(end)}
             &minmagnitude=1
         `.replace(/\s+/g, "");
     }
 
+    /** Load earthquakes and update map */
     async function loadEarthquakes() {
         document.getElementById("live").style.opacity = "1";
 
         const url = buildUSGSUrl();
         console.log("Fetching:", url);
 
-        const res = await fetch(url);
-        const data = await res.json();
+        let data;
+        try {
+            const res = await fetch(url);
+            data = await res.json();
+        } catch (err) {
+            alert("Error fetching data from USGS.");
+            return;
+        }
+
+        if (!data || !data.features) {
+            alert("Invalid data received from USGS.");
+            return;
+        }
 
         updateMap(data.features);
 
-        // update panel timestamp
         const nowCY = new Date().toLocaleString("en-GB", { timeZone: "Europe/Nicosia" });
         document.getElementById("updated").innerHTML = `<b>Last updated:</b> ${nowCY}`;
 
-        // reset countdown
         remainingTime = refreshInterval / 1000;
     }
 
+    /** Color scale based on recency */
     function getColor(date, newestTime, oldestTime) {
         const diff = date - oldestTime;
         const range = newestTime - oldestTime;
+
+        if (range === 0) return "green";
 
         const ratio = diff / range;
 
@@ -242,21 +261,26 @@
         return "red";
     }
 
+    /** Update map markers */
     function updateMap(features) {
         markersLayer.clearLayers();
 
-        if (features.length === 0) return;
+        if (features.length === 0) {
+            alert("No earthquakes found in the selected period.");
+            return;
+        }
 
         const times = features.map(f => f.properties.time);
         const newest = Math.max(...times);
         const oldest = Math.min(...times);
 
         features.forEach(eq => {
-            const coords = eq.geometry.coordinates; // [lon, lat, depth]
+            const coords = eq.geometry.coordinates;
             const lon = coords[0];
             const lat = coords[1];
-            const timeUTC = eq.properties.time;
+            const depth = coords[2];
 
+            const timeUTC = eq.properties.time;
             const cyTime = new Date(timeUTC).toLocaleString("en-GB", {
                 timeZone: "Europe/Nicosia"
             });
@@ -274,17 +298,19 @@
                 <b>${eq.properties.place}</b><br>
                 Magnitude: ${eq.properties.mag}<br>
                 Time (CY): ${cyTime}<br>
-                Depth: ${eq.geometry.coordinates[2]} km
+                Depth: ${depth} km
             `);
 
-            marker.addTo(markersLayer);
+            markersLayer.addLayer(marker);
         });
     }
 
+    /** Refresh countdown timer */
     function startCountdown() {
         countdownTimer = setInterval(() => {
             remainingTime--;
-            document.getElementById("countdown").innerText = `Refresh in ${remainingTime}s`;
+            document.getElementById("countdown").innerText =
+                `Refresh in ${remainingTime}s`;
 
             if (remainingTime <= 0) {
                 loadEarthquakes();
@@ -292,10 +318,17 @@
         }, 1000);
     }
 
+    /** Refresh map when dropdown changes */
+    document.getElementById("range").addEventListener("change", () => {
+        loadEarthquakes();
+    });
+
+    // initial load
     loadEarthquakes();
     startCountdown();
     setInterval(loadEarthquakes, refreshInterval);
 </script>
+
 
 </body>
 </html>
