@@ -4,27 +4,18 @@
   <meta charset="UTF-8">
   <title>Cyprus Earthquakes Viewer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-
   <style>
     html, body {
       height: 100%;
       margin: 0;
       font-family: "Segoe UI", Arial, sans-serif;
     }
-
     #map {
       height: 100vh;
       width: 100%;
     }
-
-    /* Legend styling */
     .legend {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
       background: rgba(255, 255, 255, 0.9);
       padding: 10px 14px;
       border-radius: 8px;
@@ -32,13 +23,11 @@
       font-size: 14px;
       line-height: 1.5;
     }
-
     .legend h4 {
       margin: 0 0 6px;
       font-size: 15px;
       font-weight: bold;
     }
-
     .legend span {
       display: inline-block;
       width: 14px;
@@ -47,13 +36,11 @@
       margin-right: 6px;
       vertical-align: middle;
     }
-
     #last-updated {
       font-size: 12px;
       color: #333;
       margin-top: 6px;
     }
-
     .leaflet-popup-content {
       font-size: 14px;
     }
@@ -61,18 +48,7 @@
 </head>
 <body>
   <div id="map"></div>
-
-  <div class="legend">
-    <h4>Earthquake Age</h4>
-    <div><span style="background:green"></span> Less than 12h</div>
-    <div><span style="background:orange"></span> 12h – 48h</div>
-    <div><span style="background:red"></span> Older than 48h</div>
-    <div id="last-updated">Loading...</div>
-  </div>
-
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
   <script>
     const map = L.map('map').setView([35.1, 33.4], 7);
 
@@ -83,11 +59,36 @@
 
     let quakeLayerGroup = L.layerGroup().addTo(map);
 
+    // ✅ Add legend as a Leaflet control
+    const legend = L.control({ position: 'bottomleft' });
+
+    legend.onAdd = function(map) {
+      const div = L.DomUtil.create('div', 'legend');
+      div.innerHTML = `
+        <h4>Earthquake Age</h4>
+        <div><span style="background:green"></span> Less than 12h</div>
+        <div><span style="background:orange"></span> 12h – 48h</div>
+        <div><span style="background:red"></span> Older than 48h</div>
+        <div id="last-updated">Loading...</div>
+      `;
+      return div;
+    };
+
+    legend.addTo(map);
+
+    function updateLegendTime() {
+      const updated = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/Nicosia',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      }).format(new Date());
+      document.getElementById('last-updated').textContent = `Last updated: ${updated} CY time`;
+    }
+
     function fetchEarthquakes() {
       quakeLayerGroup.clearLayers();
 
       const now = new Date();
-      const startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(); // last 7 days
+      const startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const url = `https://www.seismicportal.eu/fdsnws/event/1/query?format=json&starttime=${startTime}&minlat=34.4&maxlat=36.0&minlon=32.0&maxlon=35.0`;
 
       fetch(url)
@@ -107,7 +108,6 @@
           events.forEach(eq => {
             const quakeTime = new Date(eq.time);
             const diffHours = (now - quakeTime) / 1000 / 3600;
-
             let color = 'red';
             if (diffHours < 12) color = 'green';
             else if (diffHours < 48) color = 'orange';
@@ -138,11 +138,7 @@
             `);
           });
 
-          const updated = new Intl.DateTimeFormat('en-GB', {
-            timeZone: 'Europe/Nicosia',
-            hour: '2-digit', minute: '2-digit', second: '2-digit'
-          }).format(new Date());
-          document.getElementById('last-updated').textContent = `Last updated: ${updated} CY time`;
+          updateLegendTime();
         })
         .catch(err => {
           console.error('Error fetching data:', err);
@@ -150,10 +146,7 @@
         });
     }
 
-    // Initial load
     fetchEarthquakes();
-
-    // Auto-refresh every 5 minutes
     setInterval(fetchEarthquakes, 5 * 60 * 1000);
   </script>
 </body>
