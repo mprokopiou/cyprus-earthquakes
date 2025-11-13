@@ -161,11 +161,12 @@ async function loadEarthquakes() {
 
 // Determine marker color based on recency
 function getColor(time, newest, oldest){
-    const now = Date.now();
-    const hoursAgo = (now - time) / (1000*3600); // hours difference
-    if(hoursAgo <= 1) return "green";
-    if(hoursAgo <= 6) return "orange";
-    return "red";
+    const now = new Date();
+    const diffHours = (now - new Date(time)) / (1000 * 60 * 60); // difference in hours
+
+    if(diffHours <= 1) return "green";      // last 1 hour
+    if(diffHours <= 6) return "orange";     // last 6 hours
+    return "red";                            // older than 6 hours
 }
 
 // Update map markers
