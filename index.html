@@ -3,154 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <title>Cyprus Earthquake Live Map</title>
-    <!-- Primary Meta Tags -->
-    <meta name="title" content="Cyprus Earthquake Live Map — Real-Time Earthquake Updates">
-    <meta name="description" content="Live earthquake tracking for Cyprus and nearby regions. Updated automatically every 5 minutes. View magnitudes, locations, times in Cyprus timezone, and historical tremors.">
-    
-    <meta name="keywords" content="cyprus earthquakes, earthquake cyprus, cyprus seismic activity, live earthquakes cyprus, earthquake map cyprus, earthquake today, seismic live map, europe earthquakes">
-    <meta name="author" content="Cyprus Live Earthquakes">
-    <meta name="robots" content="index, follow">
-
-    <!-- Canonical URL -->
-    <link rel="canonical" href="https://mprokopiou.github.io/cyprus-earthquakes/">
-    
-    <!-- Open Graph (Facebook, WhatsApp, etc.) -->
-    <meta property="og:title" content="Cyprus Earthquake Live Map — Real-Time Updates">
-    <meta property="og:description" content="Live earthquake monitoring for Cyprus with real-time updates, magnitude markers, and Cyprus timezone conversion.">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://mprokopiou.github.io/cyprus-earthquakes/">
-    
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Cyprus Earthquake Live Map — Real-Time Monitoring">
-    <meta name="twitter:description" content="Live earthquake events updated every 5 minutes, with color-coded markers and Cyprus-time display.">
-    
-    <!-- Mobile / PWA -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#ffffff">
-    
-    <!-- Structured Data (Google JSON-LD) -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebApplication",
-      "name": "Cyprus Earthquake Live Map",
-      "url": "https://mprokopiou.github.io/cyprus-earthquakes/",
-      "description": "Real-time earthquake tracking map for Cyprus, updated every 5 minutes.",
-      "applicationCategory": "ScienceApplication",
-      "operatingSystem": "All"
-    }
-    </script>
-
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-        }
-
-        #map {
-            width: 100%;
-            height: 100%;
-        }
-
-        /* Controls top-left */
+        body, html { margin:0; padding:0; height:100%; font-family: Arial, sans-serif; }
+        #map { width:100%; height:100%; }
         .controls {
-            position: absolute;
-            z-index: 9999;
-            top: 10px;
-            left: 10px;
-            padding: 8px 12px;
-            background: rgba(255,255,255,0.9);
-            border-radius: 12px;
-            font-size: 14px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
+            position: absolute; top:10px; left:10px; z-index:9999;
+            background: rgba(255,255,255,0.9); padding:8px 12px; border-radius:12px;
+            display:flex; gap:10px; align-items:center; font-size:14px;
         }
-
-        .live {
-            color: red;
-            font-weight: bold;
-            animation: blink 1s infinite;
-        }
-
-        @keyframes blink {
-            50% { opacity: 0; }
-        }
-
-        .countdown {
-            font-size: 12px;
-            opacity: 0.7;
-        }
-
-        /* Sidebar toggle button */
+        .live { color:red; font-weight:bold; animation:blink 1s infinite; }
+        @keyframes blink {50% { opacity:0; }}
+        .countdown { font-size:12px; opacity:0.7; }
         .toggle-btn {
-            position: absolute;
-            right: 10px;
-            top: 10px;
-            z-index: 9999;
-            background: #ffffffcc;
-            padding: 8px 14px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: bold;
-            border: 1px solid #ccc;
+            position:absolute; right:10px; top:10px; z-index:9999;
+            background: #ffffffcc; padding:8px 14px; border-radius:10px;
+            cursor:pointer; font-weight:bold; border:1px solid #ccc;
         }
-
-        /* Right panel */
         .sidebar {
-            position: absolute;
-            right: 0;
-            top: 0;
-            width: 260px;
-            height: 100%;
-            background: rgba(255,255,255,0.95);
-            padding: 15px;
-            z-index: 9998;
-            overflow-y: auto;
-            border-left: 2px solid #ddd;
+            position:absolute; right:0; top:0; width:260px; height:100%;
+            background: rgba(255,255,255,0.95); padding:15px; z-index:9998; overflow-y:auto;
+            border-left:2px solid #ddd;
         }
-
-        .hidden {
-            display: none;
-        }
-
-        /* Legend bottom-right */
+        .hidden { display:none; }
         .legend {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            z-index: 9999;
-            background: rgba(255,255,255,0.9);
-            padding: 10px;
-            border-radius: 10px;
-            font-size: 14px;
-            border: 1px solid #ccc;
+            position:absolute; bottom:20px; right:20px; z-index:9999;
+            background: rgba(255,255,255,0.9); padding:10px; border-radius:10px;
+            font-size:14px; border:1px solid #ccc;
         }
-
-        .legend div {
-            margin-bottom: 5px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .color-box {
-            width: 14px;
-            height: 14px;
-            border-radius: 3px;
-            display: inline-block;
-        }
+        .legend div { margin-bottom:5px; display:flex; align-items:center; gap:6px; }
+        .color-box { width:14px; height:14px; border-radius:3px; display:inline-block; }
     </style>
 </head>
 
 <body>
-
 <div id="controls" class="controls">
     <label for="range">Time Range:</label>
     <select id="range">
@@ -160,7 +47,6 @@
         <option value="24" selected>Last 24 hours</option>
         <option value="48">Last 48 hours</option>
     </select>
-
     <span id="live" class="live">● LIVE</span>
     <span id="countdown" class="countdown"></span>
 </div>
@@ -181,153 +67,120 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
-    let map = L.map('map').setView([35.1, 33.4], 8);
-    let markersLayer = L.layerGroup().addTo(map);
+let map = L.map('map').setView([35.1,33.4],8);
+let markersLayer = L.layerGroup().addTo(map);
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 18,
-    }).addTo(map);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18}).addTo(map);
 
-    let refreshInterval = 5 * 60 * 1000; // 5 minutes
-    let remainingTime = refreshInterval / 1000;
-    let countdownTimer;
+let refreshInterval = 5*60*1000;
+let remainingTime = refreshInterval/1000;
+let countdownTimer;
 
-    function toggleSidebar() {
-        const s = document.getElementById("sidebar");
-        s.classList.toggle("hidden");
+function toggleSidebar() {
+    document.getElementById("sidebar").classList.toggle("hidden");
+}
+
+// Build Seismic Portal URL dynamically
+function buildSeismicUrl() {
+    const hours = parseInt(document.getElementById("range").value);
+    const end = new Date();
+    const start = new Date(end.getTime() - hours*3600*1000);
+    const startISO = start.toISOString().split(".")[0]+"Z";
+    const endISO = end.toISOString().split(".")[0]+"Z";
+
+    return `https://www.seismicportal.eu/fdsnws/event/1/query?format=json&starttime=${startISO}&endtime=${endISO}&minlat=34.4&maxlat=36.0&minlon=32.0&maxlon=35.0`;
+}
+
+// Load earthquakes from API
+async function loadEarthquakes() {
+    document.getElementById("live").style.opacity="1";
+    const url = buildSeismicUrl();
+    console.log("Fetching:", url);
+
+    let data;
+    try {
+        const res = await fetch(url);
+        data = await res.json();
+    } catch(err) {
+        alert("Error fetching earthquake data.");
+        return;
     }
 
-    /** Converts date to ISO without milliseconds */
-    function cleanISO(date) {
-        return date.toISOString().split(".")[0] + "Z";
+    if(!data || !data.features) {
+        alert("Invalid data received from API.");
+        return;
     }
 
-    /** Build the USGS URL dynamically */
-    function buildUSGSUrl() {
-        const hours = parseInt(document.getElementById("range").value);
-        const end = new Date();
-        const start = new Date(end.getTime() - hours * 3600 * 1000);
+    updateMap(data.features);
 
-        return `
-            https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson
-            &starttime=${cleanISO(start)}
-            &endtime=${cleanISO(end)}
-        `.replace(/\s+/g, "");
+    const nowCY = new Date().toLocaleString("en-GB",{timeZone:"Europe/Nicosia"});
+    document.getElementById("updated").innerHTML=`<b>Last updated:</b> ${nowCY}`;
+
+    remainingTime = refreshInterval/1000;
+}
+
+// Determine marker color based on recency
+function getColor(time, newest, oldest){
+    const diff = time-oldest;
+    const range = newest-oldest;
+    if(range===0) return "green";
+    const ratio = diff/range;
+    if(ratio>0.66) return "green";
+    if(ratio>0.33) return "orange";
+    return "red";
+}
+
+// Update map markers
+function updateMap(features){
+    markersLayer.clearLayers();
+    if(features.length===0){
+        alert("No earthquakes in this range.");
+        return;
     }
+    const times = features.map(f=>f.properties.time);
+    const newest = Math.max(...times);
+    const oldest = Math.min(...times);
 
-    /** Load earthquakes and update map */
-    async function loadEarthquakes() {
-        document.getElementById("live").style.opacity = "1";
+    features.forEach(eq=>{
+        const [lon, lat, depth] = eq.geometry.coordinates;
+        const timeUTC = eq.properties.time;
+        const cyTime = new Date(timeUTC).toLocaleString("en-GB",{timeZone:"Europe/Nicosia"});
+        const color = getColor(timeUTC,newest,oldest);
 
-        const url = buildUSGSUrl();
-        console.log("Fetching:", url);
-
-        let data;
-        try {
-            const res = await fetch(url);
-            data = await res.json();
-        } catch (err) {
-            alert("Error fetching data from USGS.");
-            return;
-        }
-
-        if (!data || !data.features) {
-            alert("Invalid data received from USGS.");
-            return;
-        }
-
-        updateMap(data.features);
-
-        const nowCY = new Date().toLocaleString("en-GB", { timeZone: "Europe/Nicosia" });
-        document.getElementById("updated").innerHTML = `<b>Last updated:</b> ${nowCY}`;
-
-        remainingTime = refreshInterval / 1000;
-    }
-
-    /** Color scale based on recency */
-    function getColor(date, newestTime, oldestTime) {
-        const diff = date - oldestTime;
-        const range = newestTime - oldestTime;
-
-        if (range === 0) return "green";
-
-        const ratio = diff / range;
-
-        if (ratio > 0.66) return "green";
-        if (ratio > 0.33) return "orange";
-        return "red";
-    }
-
-    /** Update map markers */
-    function updateMap(features) {
-        markersLayer.clearLayers();
-
-        if (features.length === 0) {
-            alert("No earthquakes found in the selected period.");
-            return;
-        }
-
-        const times = features.map(f => f.properties.time);
-        const newest = Math.max(...times);
-        const oldest = Math.min(...times);
-
-        features.forEach(eq => {
-            const coords = eq.geometry.coordinates;
-            const lon = coords[0];
-            const lat = coords[1];
-            const depth = coords[2];
-
-            const timeUTC = eq.properties.time;
-            const cyTime = new Date(timeUTC).toLocaleString("en-GB", {
-                timeZone: "Europe/Nicosia"
-            });
-
-            const color = getColor(timeUTC, newest, oldest);
-
-            const marker = L.circleMarker([lat, lon], {
-                radius: 8,
-                color,
-                fillColor: color,
-                fillOpacity: 0.8
-            });
-
-            marker.bindPopup(`
-                <b>${eq.properties.place}</b><br>
-                Magnitude: ${eq.properties.mag}<br>
-                Time (CY): ${cyTime}<br>
-                Depth: ${depth} km
-            `);
-
-            markersLayer.addLayer(marker);
+        const marker = L.circleMarker([lat,lon],{
+            radius: Math.max(eq.properties.mag,3),
+            color,
+            fillColor:color,
+            fillOpacity:0.8
         });
-    }
 
-    /** Refresh countdown timer */
-    function startCountdown() {
-        countdownTimer = setInterval(() => {
-            remainingTime--;
-            document.getElementById("countdown").innerText =
-                `Refresh in ${remainingTime}s`;
+        marker.bindPopup(`
+            <b>${eq.properties.flynn_region || eq.properties.place}</b><br>
+            Magnitude: ${eq.properties.mag}<br>
+            Time (CY): ${cyTime}<br>
+            Depth: ${depth} km
+        `);
 
-            if (remainingTime <= 0) {
-                loadEarthquakes();
-            }
-        }, 1000);
-    }
-
-    /** Refresh map when dropdown changes */
-    document.getElementById("range").addEventListener("change", () => {
-        loadEarthquakes();
+        markersLayer.addLayer(marker);
     });
+}
 
-    // initial load
-    loadEarthquakes();
-    startCountdown();
-    setInterval(loadEarthquakes, refreshInterval);
+// Countdown for auto-refresh
+function startCountdown(){
+    countdownTimer = setInterval(()=>{
+        remainingTime--;
+        document.getElementById("countdown").innerText=`Refresh in ${remainingTime}s`;
+        if(remainingTime<=0){ loadEarthquakes(); }
+    },1000);
+}
+
+document.getElementById("range").addEventListener("change",()=>{ loadEarthquakes(); });
+
+// Initial load
+loadEarthquakes();
+startCountdown();
+setInterval(loadEarthquakes,refreshInterval);
 </script>
-
-
 </body>
 </html>
