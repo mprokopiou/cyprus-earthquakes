@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cyprus Earthquakes Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+
+    /* Legend styling */
+    .legend {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px 14px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .legend h4 {
+      margin: 0 0 6px;
+      font-size: 15px;
+      font-weight: bold;
+    }
+
+    .legend span {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    #last-updated {
+      font-size: 12px;
+      color: #333;
+      margin-top: 6px;
+    }
+
+    .leaflet-popup-content {
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <div class="legend">
+    <h4>Earthquake Age</h4>
+    <div><span style="background:green"></span> Less than 12h</div>
+    <div><span style="background:orange"></span> 12h – 48h</div>
+    <div><span style="background:red"></span> Older than 48h</div>
+    <div id="last-updated">Loading...</div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <script>
+    const map = L.map('map').setView([35.1, 33.4], 7);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let quakeLayerGroup = L.layerGroup().addTo(map);
+
+    function fetchEarthquakes() {
+      quakeLayerGroup.clearLayers();
+
+      const now = new Date();
+      const startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(); // last 7 days
+      const url = `https://www.seismicportal.eu/fdsnws/event/1/query?format=json&starttime=${startTime}&minlat=34.4&maxlat=36.0&minlon=32.0&maxlon=35.0`;
+
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          const events = data.features.map(f => ({
+            place: f.properties.flynn_region || f.properties.eventID,
+            mag: f.properties.mag,
+            time: f.properties.time,
+            lat: f.geometry.coordinates[1],
+            lon: f.geometry.coordinates[0]
+          }));
+
+          events.sort((a, b) => new Date(b.time) - new Date(a.time));
+          const now = new Date();
+
+          events.forEach(eq => {
+            const quakeTime = new Date(eq.time);
+            const diffHours = (now - quakeTime) / 1000 / 3600;
+
+            let color = 'red';
+            if (diffHours < 12) color = 'green';
+            else if (diffHours < 48) color = 'orange';
+
+            const cyTime = new Intl.DateTimeFormat('en-GB', {
+              timeZone: 'Europe/Nicosia',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            }).format(quakeTime);
+
+            const marker = L.circleMarker([eq.lat, eq.lon], {
+              radius: Math.max(eq.mag * 2, 4),
+              fillColor: color,
+              color: color,
+              weight: 1,
+              opacity: 1,
+              fillOpacity: 0.7
+            }).addTo(quakeLayerGroup);
+
+            marker.bindPopup(`
+              <b>${eq.place}</b><br>
+              Magnitude: ${eq.mag}<br>
+              Cyprus Time: ${cyTime}
+            `);
+          });
+
+          const updated = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Europe/Nicosia',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+          }).format(new Date());
+          document.getElementById('last-updated').textContent = `Last updated: ${updated} CY time`;
+        })
+        .catch(err => {
+          console.error('Error fetching data:', err);
+          document.getElementById('last-updated').textContent = 'Failed to load data.';
+        });
+    }
+
+    // Initial load
+    fetchEarthquakes();
+
+    // Auto-refresh every 5 minutes
+    setInterval(fetchEarthquakes, 5 * 60 * 1000);
+  </script>
+</body>
+</html>
