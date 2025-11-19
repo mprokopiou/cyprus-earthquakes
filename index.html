@@ -25,7 +25,7 @@
         cursor:pointer; font-weight:bold; border:1px solid #ccc;
     }
     .sidebar {
-        position:absolute; right:0; top:0; width:280px; height:100%;
+        position:absolute; right:0; top:0; width:300px; height:100%;
         background:#fff; padding:15px; z-index:9998; overflow-y:auto;
         border-left:2px solid #ddd; box-shadow:-2px 0 6px rgba(0,0,0,0.1);
     }
@@ -40,6 +40,11 @@
     .loading { text-align:center; font-size:14px; color:#666; }
     .quake-item { padding:6px; border-bottom:1px solid #eee; cursor:pointer; }
     .quake-item:hover { background:#f9f9f9; }
+    #chartContainer { margin-top:15px; }
+    .dark-mode body, .dark-mode .sidebar, .dark-mode .controls, .dark-mode .legend {
+        background:#222; color:#eee;
+    }
+    .dark-mode .toggle-btn { background:#333; color:#fff; }
 </style>
 </head>
 <body>
@@ -57,6 +62,7 @@
     <span id="magValue">0</span>
     <span id="live" class="live">● LIVE</span>
     <span id="countdown" class="countdown"></span>
+    <button onclick="toggleDarkMode()">🌙</button>
 </div>
 
 <div class="toggle-btn" onclick="toggleSidebar()">Panel</div>
@@ -66,6 +72,9 @@
     <p id="updated"></p>
     <div id="loading" class="loading">Loading data...</div>
     <div id="quakeList"></div>
+    <div id="chartContainer">
+        <canvas id="quakeChart" width="280" height="150"></canvas>
+    </div>
 </div>
 
 <div id="map"></div>
@@ -78,9 +87,12 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 let map = L.map('map').setView([35.1,33.4],8);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18}).addTo(map);
+let lightTiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18});
+let darkTiles = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{maxZoom:18});
+lightTiles.addTo(map);
 
 let markersLayer = L.markerClusterGroup();
 map.addLayer(markersLayer);
@@ -89,9 +101,21 @@ let refreshInterval = 5*60*1000;
 let remainingTime = refreshInterval/1000;
 let countdownTimer;
 let quakeData = [];
+let chart;
 
 function toggleSidebar() {
     document.getElementById("sidebar").classList.toggle("hidden");
+}
+
+function toggleDarkMode(){
+    document.body.classList.toggle("dark-mode");
+    if(document.body.classList.contains("dark-mode")){
+        map.removeLayer(lightTiles);
+        darkTiles.addTo(map);
+    } else {
+        map.removeLayer(darkTiles);
+        lightTiles.addTo(map);
+    }
 }
 
 function buildSeismicUrl() {
@@ -113,6 +137,7 @@ async function loadEarthquakes() {
         quakeData = data.features || [];
         updateMap(quakeData);
         updateSidebar(quakeData);
+        updateChart(quakeData);
         const nowCY = new Date().toLocaleString("en-GB",{timeZone:"Europe/Nicosia"});
         document.getElementById("updated").innerHTML=`<b>Last updated:</b> ${nowCY}`;
     } catch(err) {
@@ -165,6 +190,21 @@ function updateSidebar(features){
     });
 }
 
+function updateChart(features){
+    const mags = features.map(eq=>eq.properties.mag);
+    const bins = [0,1,2,3,4,5,6];
+    const counts = bins.map(b=>mags.filter(m=>m>=b && m<b+1).length);
+    if(chart){ chart.destroy(); }
+    chart = new Chart(document.getElementById("quakeChart"),{
+        type:'bar',
+        data:{
+            labels: bins.map(b=>`${b}-${b+1}`),
+            datasets:[{label:'Earthquakes by Magnitude',data:counts,backgroundColor:'#007bff'}]
+        },
+        options:{responsive:true,plugins:{legend:{display:false}}}
+    });
+}
+
 function startCountdown(){
     countdownTimer = setInterval(()=>{
         remainingTime--;
@@ -178,11 +218,42 @@ document.getElementById("magFilter").addEventListener("input",()=>{
     document.getElementById("magValue").innerText=document.getElementById("magFilter").value;
     updateMap(quakeData);
     updateSidebar(quakeData);
+    updateChart(quakeData);
 });
 
 loadEarthquakes();
 startCountdown();
 setInterval(loadEarthquakes,refreshInterval);
+
+// PWA Setup
+if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(console.error);
+}
+</script>
+
+<!-- Manifest -->
+<script type="application/json" id="manifest">
+{
+    "name": "Cyprus Earthquake Live Map",
+    "short_name": "Earthquakes CY",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#ffffff",
+    "icons": []
+}
+</script>
+
+<!-- Service Worker -->
+<script id="sw">
+self.addEventListener('install',e=>{
+    e.waitUntil(caches.open('quake-cache').then(cache=>{
+        return cache.addAll(['./']);
+    }));
+});
+self.addEventListener('fetch',e=>{
+    e.respondWith(caches.match(e.request).then(resp=>resp||fetch(e.request)));
+});
 </script>
 </body>
 </html>
